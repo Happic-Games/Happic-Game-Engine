@@ -68,20 +68,44 @@
     <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
   </ImportGroup>
   <PropertyGroup Label="UserMacros" />
-  <PropertyGroup />
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
+    <IncludePath>$(SolutionDir)Dependencies\GLEW\include;$(SolutionDir)Dependencies\Vulkan\Include;$(IncludePath)</IncludePath>
+    <LibraryPath>$(SolutionDir)Dependencies\GLEW\lib32;$(SolutionDir)Dependencies\Vulkan\Lib32;$(LibraryPath)</LibraryPath>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
+    <IncludePath>$(SolutionDir)Dependencies\GLEW\include;$(SolutionDir)Dependencies\Vulkan\Include;$(IncludePath)</IncludePath>
+    <LibraryPath>$(SolutionDir)Dependencies\GLEW\lib32;$(SolutionDir)Dependencies\Vulkan\Lib32;$(LibraryPath)</LibraryPath>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
+    <IncludePath>$(SolutionDir)Dependencies\GLEW\include;$(SolutionDir)Dependencies\Vulkan\Include;$(IncludePath)</IncludePath>
+    <LibraryPath>$(SolutionDir)Dependencies\lib64;$(SolutionDir)Dependencies\Vulkan\Lib;$(LibraryPath)</LibraryPath>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
+    <IncludePath>$(SolutionDir)Dependencies\GLEW\include;$(SolutionDir)Dependencies\Vulkan\Include;$(IncludePath)</IncludePath>
+    <LibraryPath>$(SolutionDir)Dependencies\lib64;$(SolutionDir)Dependencies\Vulkan\Lib;$(LibraryPath)</LibraryPath>
+  </PropertyGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
     <ClCompile>
       <WarningLevel>Level3</WarningLevel>
       <Optimization>Disabled</Optimization>
       <SDLCheck>true</SDLCheck>
+      <PreprocessorDefinitions>_CRT_SECURE_NO_WARNINGS;GLEW_STATIC</PreprocessorDefinitions>
     </ClCompile>
+    <Link>
+      <AdditionalDependencies>vulkan-1.lib;d3d11.lib;dxgi.lib;D3DCompiler.lib;dxguid.lib;glew32s.lib;opengl32.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <SuppressStartupBanner>false</SuppressStartupBanner>
+    </Link>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
     <ClCompile>
       <WarningLevel>Level3</WarningLevel>
       <Optimization>Disabled</Optimization>
       <SDLCheck>true</SDLCheck>
+      <PreprocessorDefinitions>_CRT_SECURE_NO_WARNINGS;GLEW_STATIC</PreprocessorDefinitions>
     </ClCompile>
+    <Link>
+      <AdditionalDependencies>vulkan-1.lib;d3d11.lib;dxgi.lib;D3DCompiler.lib;dxguid.lib;glew32s.lib;opengl32.lib;%(AdditionalDependencies)</AdditionalDependencies>
+    </Link>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
     <ClCompile>
@@ -90,10 +114,13 @@
       <FunctionLevelLinking>true</FunctionLevelLinking>
       <IntrinsicFunctions>true</IntrinsicFunctions>
       <SDLCheck>true</SDLCheck>
+      <PreprocessorDefinitions>_CRT_SECURE_NO_WARNINGS;GLEW_STATIC</PreprocessorDefinitions>
     </ClCompile>
     <Link>
       <EnableCOMDATFolding>true</EnableCOMDATFolding>
       <OptimizeReferences>true</OptimizeReferences>
+      <AdditionalDependencies>vulkan-1.lib;d3d11.lib;dxgi.lib;D3DCompiler.lib;dxguid.lib;glew32s.lib;opengl32.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <SuppressStartupBanner>false</SuppressStartupBanner>
     </Link>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
@@ -103,13 +130,131 @@
       <FunctionLevelLinking>true</FunctionLevelLinking>
       <IntrinsicFunctions>true</IntrinsicFunctions>
       <SDLCheck>true</SDLCheck>
+      <PreprocessorDefinitions>_CRT_SECURE_NO_WARNINGS;GLEW_STATIC</PreprocessorDefinitions>
     </ClCompile>
     <Link>
       <EnableCOMDATFolding>true</EnableCOMDATFolding>
       <OptimizeReferences>true</OptimizeReferences>
+      <AdditionalDependencies>vulkan-1.lib;d3d11.lib;dxgi.lib;D3DCompiler.lib;dxguid.lib;glew32s.lib;opengl32.lib;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClCompile Include="Src\Core\CoreEngine.cpp" />
+    <ClCompile Include="Src\Core\IDisplayInput.cpp" />
+    <ClCompile Include="Src\DataStructures\String.cpp" />
+    <ClCompile Include="Src\ECS\ECSBaseComponent.cpp" />
+    <ClCompile Include="Src\ECS\ECSBaseSystem.cpp" />
+    <ClCompile Include="Src\ECS\Systems\MouseLookAroundSystem.cpp" />
+    <ClCompile Include="Src\ECS\EntityComponentSystem.cpp" />
+    <ClCompile Include="Src\ECS\Systems\KeyboardMovementSystem.cpp" />
+    <ClCompile Include="Src\ECS\Systems\MeshSubmitionSystem.cpp" />
+    <ClCompile Include="Src\ECS\Systems\RotationSystem.cpp" />
+    <ClCompile Include="Src\ECS\Systems\ViewProjectionSystem.cpp" />
+    <ClCompile Include="Src\File\FileReader.cpp" />
+    <ClCompile Include="Src\Importers\HappmdlImporter.cpp" />
+    <ClCompile Include="Src\main.cpp" />
+    <ClCompile Include="Src\Math\Math.cpp" />
+    <ClCompile Include="Src\Memory\LinearAllocator.cpp" />
+    <ClCompile Include="Src\Memory\PoolAllocator.cpp" />
+    <ClCompile Include="Src\Memory\StackAllocator.cpp" />
+    <ClCompile Include="Src\Platform\D3D11\BufferD3D11.cpp" />
+    <ClCompile Include="Src\Platform\D3D11\RenderContextD3D11.cpp" />
+    <ClCompile Include="Src\Platform\D3D11\Texture2DD3D11.cpp" />
+    <ClCompile Include="Src\Platform\D3D11\TextureSamplerD3D11.cpp" />
+    <ClCompile Include="Src\Platform\OpenGL\BufferGL.cpp" />
+    <ClCompile Include="Src\Platform\OpenGL\RenderContextGL.cpp" />
+    <ClCompile Include="Src\Platform\OpenGL\Texture2DGL.cpp" />
+    <ClCompile Include="Src\Platform\OpenGL\TextureSamplerGL.cpp" />
+    <ClCompile Include="Src\Platform\Vulkan\BufferVK.cpp" />
+    <ClCompile Include="Src\Platform\Vulkan\RenderContextVK.cpp" />
+    <ClCompile Include="Src\Platform\Vulkan\Texture2DVK.cpp" />
+    <ClCompile Include="Src\Platform\Vulkan\TextureSamplerVK.cpp" />
+    <ClCompile Include="Src\Platform\Windows\Win32Display.cpp" />
+    <ClCompile Include="Src\Platform\Windows\Win32Input.cpp" />
+    <ClCompile Include="Src\Rendering\IBuffer.cpp" />
+    <ClCompile Include="Src\Rendering\IDisplay.cpp" />
+    <ClCompile Include="Src\Rendering\IRenderContext.cpp" />
+    <ClCompile Include="Src\Rendering\ITexture2D.cpp" />
+    <ClCompile Include="Src\Rendering\ITextureSampler.cpp" />
+    <ClCompile Include="Src\Rendering\Material.cpp" />
+    <ClCompile Include="Src\Rendering\Mesh.cpp" />
+    <ClCompile Include="Src\Rendering\RenderingEngine.cpp" />
+    <ClCompile Include="Src\Rendering\WindowEventSystem.cpp" />
+    <ClCompile Include="Src\Vendor\stb_image.c" />
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="Src\Core\Application.h" />
+    <ClInclude Include="Src\Core\CoreEngine.h" />
+    <ClInclude Include="Src\Core\IDisplayInput.h" />
+    <ClInclude Include="Src\Core\InputDefs.h" />
+    <ClInclude Include="Src\Core\SubEngines.h" />
+    <ClInclude Include="Src\DataStructures\Array.h" />
+    <ClInclude Include="Src\DataStructures\String.h" />
+    <ClInclude Include="Src\DataStructures\Types.h" />
+    <ClInclude Include="Src\DataStructures\Vector.h" />
+    <ClInclude Include="Src\ECS\Components\CameraComponent.h" />
+    <ClInclude Include="Src\ECS\Components\Components.h" />
+    <ClInclude Include="Src\ECS\Components\KeyboardMovementComponent.h" />
+    <ClInclude Include="Src\ECS\Components\MeshComponent.h" />
+    <ClInclude Include="Src\ECS\Components\MouseLookAroundComponent.h" />
+    <ClInclude Include="Src\ECS\Components\RotationComponent.h" />
+    <ClInclude Include="Src\ECS\ECSBaseComponent.h" />
+    <ClInclude Include="Src\ECS\ECSBaseSystem.h" />
+    <ClInclude Include="Src\ECS\Systems\MouseLookAroundSystem.h" />
+    <ClInclude Include="Src\ECS\Components\TransformComponent.h" />
+    <ClInclude Include="Src\ECS\ECSComponent.h" />
+    <ClInclude Include="Src\ECS\ECSHandles.h" />
+    <ClInclude Include="Src\ECS\ECSSystem.h" />
+    <ClInclude Include="Src\ECS\EntityComponentSystem.h" />
+    <ClInclude Include="Src\ECS\Systems\KeyboardMovementSystem.h" />
+    <ClInclude Include="Src\ECS\Systems\MeshSubmitionSystem.h" />
+    <ClInclude Include="Src\ECS\Systems\RotationSystem.h" />
+    <ClInclude Include="Src\ECS\Systems\Systems.h" />
+    <ClInclude Include="Src\ECS\Systems\ViewProjectionSystem.h" />
+    <ClInclude Include="Src\File\FileReader.h" />
+    <ClInclude Include="Src\Importers\HappmdlImporter.h" />
+    <ClInclude Include="Src\Math\GeneralMath.h" />
+    <ClInclude Include="Src\Math\Math.h" />
+    <ClInclude Include="Src\Math\Transform.h" />
+    <ClInclude Include="Src\Memory\Allocator.h" />
+    <ClInclude Include="Src\Memory\LinearAllocator.h" />
+    <ClInclude Include="Src\Memory\PoolAllocator.h" />
+    <ClInclude Include="Src\Memory\StackAllocator.h" />
+    <ClInclude Include="Src\Platform\D3D11\BufferD3D11.h" />
+    <ClInclude Include="Src\Platform\D3D11\RenderContextD3D11.h" />
+    <ClInclude Include="Src\Platform\D3D11\Texture2DD3D11.h" />
+    <ClInclude Include="Src\Platform\D3D11\TextureSamplerD3D11.h" />
+    <ClInclude Include="Src\Platform\OpenGL\BufferGL.h" />
+    <ClInclude Include="Src\Platform\OpenGL\RenderContextGL.h" />
+    <ClInclude Include="Src\Platform\OpenGL\Texture2DGL.h" />
+    <ClInclude Include="Src\Platform\OpenGL\TextureSamplerGL.h" />
+    <ClInclude Include="Src\Platform\Vulkan\BufferVK.h" />
+    <ClInclude Include="Src\Platform\Vulkan\RenderContextVK.h" />
+    <ClInclude Include="Src\Platform\Vulkan\Texture2DVK.h" />
+    <ClInclude Include="Src\Platform\Vulkan\TextureSamplerVK.h" />
+    <ClInclude Include="Src\Platform\Windows\Win32Display.h" />
+    <ClInclude Include="Src\Platform\Windows\Win32Input.h" />
+    <ClInclude Include="Src\Rendering\DrawCommand.h" />
+    <ClInclude Include="Src\Rendering\GraphicsPipeline\ColorBlendState.h" />
+    <ClInclude Include="Src\Rendering\GraphicsPipeline\DepthStencilState.h" />
+    <ClInclude Include="Src\Rendering\GraphicsPipeline\DynamicState.h" />
+    <ClInclude Include="Src\Rendering\GraphicsPipeline\GraphicsPipeline.h" />
+    <ClInclude Include="Src\Rendering\GraphicsPipeline\RasterizerState.h" />
+    <ClInclude Include="Src\Rendering\GraphicsPipeline\ShaderInfo.h" />
+    <ClInclude Include="Src\Rendering\GraphicsPipeline\VertexInputLayout.h" />
+    <ClInclude Include="Src\Rendering\IBuffer.h" />
+    <ClInclude Include="Src\Rendering\IDisplay.h" />
+    <ClInclude Include="Src\Rendering\IRenderContext.h" />
+    <ClInclude Include="Src\Rendering\ITexture.h" />
+    <ClInclude Include="Src\Rendering\ITexture2D.h" />
+    <ClInclude Include="Src\Rendering\ITextureSampler.h" />
+    <ClInclude Include="Src\Rendering\Material.h" />
+    <ClInclude Include="Src\Rendering\Mesh.h" />
+    <ClInclude Include="Src\Rendering\RenderAPI.h" />
+    <ClInclude Include="Src\Rendering\RenderingEngine.h" />
+    <ClInclude Include="Src\Rendering\Vertex.h" />
+    <ClInclude Include="Src\Rendering\WindowEventSystem.h" />
+    <ClInclude Include="Src\Vendor\stb_image.h" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">
