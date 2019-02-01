@@ -63,7 +63,7 @@ void TestGame::Init()
 	m_ecs.CreateComponent<MeshComponent>(monkeyEntity, m_monkey);
 	m_ecs.CreateComponent<RotationComponent>(monkeyEntity, Vector3f(-0.6f, 0.8f, 0.2f), 180.0f, 6.0f, 0.25f);
 	
-
+	
 	EntityID camera = m_ecs.CreateEntity();
 	m_ecs.CreateComponent<CameraComponent>(camera, 70.0f);
 	m_ecs.CreateComponent<TransformComponent>(camera);
