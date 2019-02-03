@@ -86,7 +86,7 @@ void TestGame::FreeResources()
 
 int main()
 {
-	CoreEngine* pCoreEngine = new CoreEngine(new TestGame(), RENDER_API_VULKAN, "Happic Game Engine", 1280, 720);
+	CoreEngine* pCoreEngine = new CoreEngine(new TestGame(), RENDER_API_D3D11, "Happic Game Engine", 1280, 720);
 	pCoreEngine->Start();
 	delete pCoreEngine;
 }

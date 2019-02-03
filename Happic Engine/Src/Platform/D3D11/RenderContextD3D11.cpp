@@ -15,28 +15,193 @@ namespace Happic { namespace Rendering {
 
 	RenderContextD3D11::~RenderContextD3D11()
 	{
-		m_pBlendState->Release();
+		for (const auto& pipeline : m_loadedGraphicsPipelines)
+		{
+			pipeline.second.pBlendState->Release();
+			pipeline.second.pDepthStencilState->Release();
+			pipeline.second.pDepthStencilView->Release();
+			pipeline.second.pInputLayout->Release();
+			pipeline.second.pRasterizerState->Release();
+		}
+
 		m_pDevice->Release();
 		m_pDeviceContext->Release();
-		m_pInputLayout->Release();
-		m_pRasterizerState->Release();
 		m_pRenderTargetView->Release();
 		m_pSwapChain->Release();
 
-		for (uint32 i = 0; i < m_loadedShaders.size(); i++)
+		for (const auto& shader : m_loadedShaders)
 		{
-			m_loadedShaders[i].pPixelCode->Release();
-			m_loadedShaders[i].pPixelShader->Release();
-			m_loadedShaders[i].pVertexCode->Release();
-			m_loadedShaders[i].pVertexShader->Release();
+			shader.second.pPixelCode->Release();
+			shader.second.pPixelShader->Release();
+			shader.second.pVertexCode->Release();
+			shader.second.pVertexShader->Release();
 		}
+	}
+
+	void RenderContextD3D11::ChangeGraphicsPipeline(const GraphicsPipeline & pipeline)
+	{
+		if (pipeline.id == m_graphicsPipelineSettings.id)
+			return;
+
+		const auto&& pipelineIndex = m_loadedGraphicsPipelines.find(pipeline.id);
+		if (pipelineIndex != m_loadedGraphicsPipelines.end())
+		{
+			m_graphicsPipeline = pipelineIndex->second;
+			m_pActiveShader = &m_loadedShaders[pipeline.shaderInfo.shaderPaths[SHADER_TYPE_VERTEX]];
+			m_pDeviceContext->VSSetShader(m_pActiveShader->pVertexShader, NULL, 0);
+			m_pDeviceContext->PSSetShader(m_pActiveShader->pPixelShader, NULL, 0);
+			m_pDeviceContext->RSSetState(m_graphicsPipeline.pRasterizerState);
+			m_pDeviceContext->IASetInputLayout(m_graphicsPipeline.pInputLayout);
+			m_pDeviceContext->RSSetViewports(1, &m_graphicsPipeline.viewport);
+			m_pDeviceContext->RSSetScissorRects(1, &m_graphicsPipeline.scissor);
+			m_pDeviceContext->OMSetBlendState(m_graphicsPipeline.pBlendState, NULL, 0xffffffff);
+			m_pDeviceContext->OMSetDepthStencilState(m_graphicsPipeline.pDepthStencilState, 0xFF);
+
+			return;
+		}
+
+		m_graphicsPipelineSettings = pipeline;
+
+		const auto&& index = m_loadedShaders.find(pipeline.shaderInfo.shaderPaths[SHADER_TYPE_VERTEX]);
+		if (index == m_loadedShaders.end())
+			m_pActiveShader = LoadShader(pipeline.shaderInfo);
+		else
+			m_pActiveShader = &index->second;
+
+		m_graphicsPipelineSettings = pipeline;
+
+
+		m_pDeviceContext->VSSetShader(m_pActiveShader->pVertexShader, NULL, 0);
+		m_pDeviceContext->PSSetShader(m_pActiveShader->pPixelShader, NULL, 0);
+
+		D3D11_RASTERIZER_DESC rasterizer_desc{};
+		rasterizer_desc.ScissorEnable = true;
+		rasterizer_desc.CullMode = GetCullMode(pipeline.rasterizerState.cullMode);
+		rasterizer_desc.FrontCounterClockwise = pipeline.rasterizerState.frontFace == FRONT_FACE_CCW ? true : false;
+		rasterizer_desc.FillMode = GetFillMode(pipeline.rasterizerState.polygonMode);
+
+		HRESULT err = m_pDevice->CreateRasterizerState(&rasterizer_desc, &m_graphicsPipeline.pRasterizerState);
+		if (err != S_OK)
+		{
+			std::cerr << "Error creating D3D11 rasterizer state" << std::endl;
+			return;
+		}
+
+		m_pDeviceContext->RSSetState(m_graphicsPipeline.pRasterizerState);
+
+		std::vector<D3D11_INPUT_ELEMENT_DESC> input_element_descs;
+		input_element_descs.resize(pipeline.inputLayout.numVertexAttributes);
+		uint32 offset = 0;
+		for (uint32 i = 0; i < pipeline.inputLayout.numVertexAttributes; i++)
+		{
+			D3D11_INPUT_ELEMENT_DESC input_element_desc{};
+			input_element_desc.SemanticName = pipeline.inputLayout.vertexAttributes[i].name.C_Str();
+			input_element_desc.SemanticIndex = 0;
+			input_element_desc.InstanceDataStepRate = 0;
+			input_element_desc.InputSlotClass = D3D11_INPUT_PER_VERTEX_DATA;
+			input_element_desc.InputSlot = 0;
+			input_element_desc.AlignedByteOffset = offset;
+
+			switch (pipeline.inputLayout.vertexAttributes[i].type)
+			{
+			case VERTEX_ATTRIBUTE_FLOAT:  input_element_desc.Format = DXGI_FORMAT_R32_FLOAT; offset += sizeof(float) * 1; break;
+			case VERTEX_ATTRIBUTE_FLOAT2: input_element_desc.Format = DXGI_FORMAT_R32G32_FLOAT; offset += sizeof(float) * 2; break;
+			case VERTEX_ATTRIBUTE_FLOAT3: input_element_desc.Format = DXGI_FORMAT_R32G32B32_FLOAT; offset += sizeof(float) * 3; break;
+			case VERTEX_ATTRIBUTE_FLOAT4: input_element_desc.Format = DXGI_FORMAT_R32G32B32A32_FLOAT; offset += sizeof(float) * 4; break;
+			}
+
+			input_element_descs[pipeline.inputLayout.vertexAttributes[i].location] = input_element_desc;
+		}
+
+		err = m_pDevice->CreateInputLayout(&input_element_descs[0], input_element_descs.size(), m_pActiveShader->pVertexCode->GetBufferPointer(),
+			m_pActiveShader->pVertexCode->GetBufferSize(), &m_graphicsPipeline.pInputLayout);
+
+		if (err != S_OK)
+		{
+			std::cerr << "Error creating D3D11 input layout" << std::endl;
+			return;
+		}
+
+		m_pDeviceContext->IASetInputLayout(m_graphicsPipeline.pInputLayout);
+
+		D3D11_VIEWPORT viewport{};
+		viewport.TopLeftX = pipeline.viewport.x;
+		viewport.TopLeftY = pipeline.viewport.y;
+		viewport.Width = pipeline.viewport.width;
+		viewport.Height = pipeline.viewport.height;
+		viewport.MinDepth = 0.0f;
+		viewport.MaxDepth = 1.0f;
+
+		D3D11_RECT rect;
+		rect.left = pipeline.scissor.x;
+		rect.right = pipeline.scissor.width + pipeline.scissor.x;
+		rect.top = pipeline.scissor.y;
+		rect.bottom = pipeline.scissor.height + pipeline.scissor.y;
+
+		m_graphicsPipeline.viewport = viewport;
+		m_graphicsPipeline.scissor = rect;
+
+		m_pDeviceContext->RSSetViewports(1, &viewport);
+		m_pDeviceContext->RSSetScissorRects(1, &rect);
+
+		D3D11_RENDER_TARGET_BLEND_DESC blend_desc;
+		blend_desc.BlendEnable = pipeline.colorBlendState.enabled;
+		blend_desc.BlendOp = GetBlendOperation(pipeline.colorBlendState.operation);
+		blend_desc.BlendOpAlpha = GetBlendOperation(pipeline.colorBlendState.alphaBlendOperation);
+		blend_desc.DestBlend = GetBlendFactor(pipeline.colorBlendState.destFactor);
+		blend_desc.DestBlendAlpha = GetBlendFactor(pipeline.colorBlendState.alphaDestFactor);
+		blend_desc.RenderTargetWriteMask = D3D11_COLOR_WRITE_ENABLE_ALL;
+		blend_desc.SrcBlend = GetBlendFactor(pipeline.colorBlendState.srcFactor);
+		blend_desc.SrcBlendAlpha = GetBlendFactor(pipeline.colorBlendState.alphaSrcFactor);
+
+		D3D11_BLEND_DESC blend_desc_;
+		blend_desc_.AlphaToCoverageEnable = false;
+		blend_desc_.IndependentBlendEnable = false;
+		blend_desc_.RenderTarget[0] = blend_desc;
+
+		err = m_pDevice->CreateBlendState(&blend_desc_, &m_graphicsPipeline.pBlendState);
+		if (err != S_OK)
+		{
+			std::cerr << "Error creating D3D11 blend state" << std::endl;
+			return;
+		}
+
+		m_pDeviceContext->OMSetBlendState(m_graphicsPipeline.pBlendState, NULL, 0xffffffff);
+
+		D3D11_DEPTH_STENCIL_DESC depth_stencil_desc;
+
+		depth_stencil_desc.DepthEnable = pipeline.depthStencilState.depthTestEnabled;
+		depth_stencil_desc.DepthWriteMask = pipeline.depthStencilState.depthWriteEnabled ? D3D11_DEPTH_WRITE_MASK_ALL : D3D11_DEPTH_WRITE_MASK_ZERO;
+
+		switch (pipeline.depthStencilState.depthComparison)
+		{
+		case COMPARISON_ALWAYS: depth_stencil_desc.DepthFunc = D3D11_COMPARISON_ALWAYS; break;
+		case COMPARISON_NEVER: depth_stencil_desc.DepthFunc = D3D11_COMPARISON_NEVER; break;
+		case COMPARISON_LESS: depth_stencil_desc.DepthFunc = D3D11_COMPARISON_LESS; break;
+		case COMPARISON_GREATER: depth_stencil_desc.DepthFunc = D3D11_COMPARISON_GREATER; break;
+		case COMPARISON_LESS_EQUAL: depth_stencil_desc.DepthFunc = D3D11_COMPARISON_LESS_EQUAL; break;
+		case COMPARISON_GREATER_EQUAL: depth_stencil_desc.DepthFunc = D3D11_COMPARISON_GREATER_EQUAL; break;
+		case COMPARISON_EQUAL: depth_stencil_desc.DepthFunc = D3D11_COMPARISON_EQUAL; break;
+		case COMPARISON_NOT_EQUAL: depth_stencil_desc.DepthFunc = D3D11_COMPARISON_NOT_EQUAL; break;
+		}
+
+		depth_stencil_desc.StencilEnable = pipeline.depthStencilState.stencilTestEnabled;
+		depth_stencil_desc.StencilReadMask = 0xFF;
+		depth_stencil_desc.StencilWriteMask = 0xFF;
+
+		depth_stencil_desc.BackFace = GetStencilFace(pipeline.depthStencilState.back);
+		depth_stencil_desc.FrontFace = GetStencilFace(pipeline.depthStencilState.front);
+
+		m_pDevice->CreateDepthStencilState(&depth_stencil_desc, &m_graphicsPipeline.pDepthStencilState);
+		m_pDeviceContext->OMSetDepthStencilState(m_graphicsPipeline.pDepthStencilState, 0xFF);
+		InitDepthStencilView();
 	}
 
 	void RenderContextD3D11::BeginFrame() const
 	{
-		m_pDeviceContext->OMSetRenderTargets(1, &m_pRenderTargetView, m_pDepthStencilView);
+		m_pDeviceContext->OMSetRenderTargets(1, &m_pRenderTargetView, m_graphicsPipeline.pDepthStencilView);
 		m_pDeviceContext->ClearRenderTargetView(m_pRenderTargetView, m_clearColor);
-		m_pDeviceContext->ClearDepthStencilView(m_pDepthStencilView, D3D11_CLEAR_DEPTH, 1.0f, 0xFF);
+		m_pDeviceContext->ClearDepthStencilView(m_graphicsPipeline.pDepthStencilView, D3D11_CLEAR_DEPTH, 1.0f, 0xFF);
 	}
 
 	void RenderContextD3D11::UpdateTexturesAndSamplers(const TextureGroup& textureGroup) const
@@ -102,12 +267,10 @@ namespace Happic { namespace Rendering {
 		m_pSwapChain->Present(1, 0);
 	}
 
-	void RenderContextD3D11::Init(const RenderContextInitInfo & initInfo)
+	void RenderContextD3D11::Init(IDisplay* pDisplay)
 	{
-		InitDeviceAndSwapChain((Win32Display*)initInfo.pDisplay);
+		InitDeviceAndSwapChain((Win32Display*)pDisplay);
 		InitRenderTargetView();
-		InitGraphicsPipeline(initInfo.pipeline);
-		InitDepthStencilView();
 	}
 
 	ID3D11Device * RenderContextD3D11::GetDevice()
@@ -145,7 +308,6 @@ namespace Happic { namespace Rendering {
 		ID3D11Texture2D* pBackBuffer;
 		m_pSwapChain->GetBuffer(0, __uuidof(ID3D11Texture2D), (void**)&pBackBuffer);
 		m_pDevice->CreateRenderTargetView(pBackBuffer, NULL, &m_pRenderTargetView);
-		m_pDeviceContext->OMSetRenderTargets(1, &m_pRenderTargetView, m_pDepthStencilView);
 		pBackBuffer->Release();
 	}
 
@@ -180,7 +342,7 @@ namespace Happic { namespace Rendering {
 		depth_stencil_view_desc.Texture2D.MipSlice = 0;
 		depth_stencil_view_desc.Flags = 0;
 
-		err = m_pDevice->CreateDepthStencilView(pDepthStencilTexture, &depth_stencil_view_desc, &m_pDepthStencilView);
+		err = m_pDevice->CreateDepthStencilView(pDepthStencilTexture, &depth_stencil_view_desc, &m_graphicsPipeline.pDepthStencilView);
 
 		if (err != S_OK)
 		{
@@ -190,136 +352,7 @@ namespace Happic { namespace Rendering {
 		pDepthStencilTexture->Release();
 	}
 
-	void RenderContextD3D11::InitGraphicsPipeline(const GraphicsPipeline & pipeline)
-	{
-		m_graphicsPipelineSettings = pipeline;
-
-		uint32 shaderID = LoadShader(pipeline.shaderInfo);
-		m_pActiveShader = &m_loadedShaders[shaderID];
-
-		m_pDeviceContext->VSSetShader(m_pActiveShader->pVertexShader, NULL, 0);
-		m_pDeviceContext->PSSetShader(m_pActiveShader->pPixelShader, NULL, 0);
-
-		D3D11_RASTERIZER_DESC rasterizer_desc {};
-		rasterizer_desc.ScissorEnable = true;
-		rasterizer_desc.CullMode = GetCullMode(pipeline.rasterizerState.cullMode);
-		rasterizer_desc.FrontCounterClockwise = pipeline.rasterizerState.frontFace == FRONT_FACE_CCW ? true : false;
-		rasterizer_desc.FillMode = GetFillMode(pipeline.rasterizerState.polygonMode);
-		
-		HRESULT err = m_pDevice->CreateRasterizerState(&rasterizer_desc, &m_pRasterizerState);
-		if (err != S_OK)
-		{
-			std::cerr << "Error creating D3D11 rasterizer state" << std::endl;
-			return;
-		}
-
-		m_pDeviceContext->RSSetState(m_pRasterizerState);
-
-		std::vector<D3D11_INPUT_ELEMENT_DESC> input_element_descs;
-		input_element_descs.resize(pipeline.inputLayout.numVertexAttributes);
-		uint32 offset = 0;
-		for (uint32 i = 0; i < pipeline.inputLayout.numVertexAttributes; i++)
-		{
-			D3D11_INPUT_ELEMENT_DESC input_element_desc {};
-			input_element_desc.SemanticName = pipeline.inputLayout.vertexAttributes[i].name.C_Str();
-			input_element_desc.SemanticIndex = 0;
-			input_element_desc.InstanceDataStepRate = 0;
-			input_element_desc.InputSlotClass = D3D11_INPUT_PER_VERTEX_DATA;
-			input_element_desc.InputSlot = 0;
-			input_element_desc.AlignedByteOffset = offset;
-
-			switch (pipeline.inputLayout.vertexAttributes[i].type)
-			{
-			case VERTEX_ATTRIBUTE_FLOAT:  input_element_desc.Format = DXGI_FORMAT_R32_FLOAT; offset += sizeof(float) * 1; break;
-			case VERTEX_ATTRIBUTE_FLOAT2: input_element_desc.Format = DXGI_FORMAT_R32G32_FLOAT; offset += sizeof(float) * 2; break;
-			case VERTEX_ATTRIBUTE_FLOAT3: input_element_desc.Format = DXGI_FORMAT_R32G32B32_FLOAT; offset += sizeof(float) * 3; break;
-			case VERTEX_ATTRIBUTE_FLOAT4: input_element_desc.Format = DXGI_FORMAT_R32G32B32A32_FLOAT; offset += sizeof(float) * 4; break;
-			}
-
-			input_element_descs[pipeline.inputLayout.vertexAttributes[i].location] = input_element_desc;
-		}
-
-		err = m_pDevice->CreateInputLayout(&input_element_descs[0], input_element_descs.size(), m_pActiveShader->pVertexCode->GetBufferPointer(),
-			m_pActiveShader->pVertexCode->GetBufferSize(), &m_pInputLayout);
-
-		if (err != S_OK)
-		{
-			std::cerr << "Error creating D3D11 input layout" << std::endl;
-			return;
-		}
-
-		m_pDeviceContext->IASetInputLayout(m_pInputLayout);
-
-		D3D11_VIEWPORT viewport {};
-		viewport.TopLeftX = pipeline.viewport.x;
-		viewport.TopLeftY = pipeline.viewport.y;
-		viewport.Width = pipeline.viewport.width;
-		viewport.Height = pipeline.viewport.height;
-		viewport.MinDepth = 0.0f;
-		viewport.MaxDepth = 1.0f;
-
-		D3D11_RECT rect;
-		rect.left = pipeline.scissor.x;
-		rect.right = pipeline.scissor.width + pipeline.scissor.x;
-		rect.top = pipeline.scissor.y;
-		rect.bottom = pipeline.scissor.height + pipeline.scissor.y;
-
-		m_pDeviceContext->RSSetViewports(1, &viewport);
-		m_pDeviceContext->RSSetScissorRects(1, &rect);
-
-		D3D11_RENDER_TARGET_BLEND_DESC blend_desc;
-		blend_desc.BlendEnable = pipeline.colorBlendState.enabled;
-		blend_desc.BlendOp = GetBlendOperation(pipeline.colorBlendState.operation);
-		blend_desc.BlendOpAlpha = GetBlendOperation(pipeline.colorBlendState.alphaBlendOperation);
-		blend_desc.DestBlend = GetBlendFactor(pipeline.colorBlendState.destFactor);
-		blend_desc.DestBlendAlpha = GetBlendFactor(pipeline.colorBlendState.alphaDestFactor);
-		blend_desc.RenderTargetWriteMask = D3D11_COLOR_WRITE_ENABLE_ALL;
-		blend_desc.SrcBlend = GetBlendFactor(pipeline.colorBlendState.srcFactor);
-		blend_desc.SrcBlendAlpha = GetBlendFactor(pipeline.colorBlendState.alphaSrcFactor);
-
-		D3D11_BLEND_DESC blend_desc_;
-		blend_desc_.AlphaToCoverageEnable = false;
-		blend_desc_.IndependentBlendEnable = false;
-		blend_desc_.RenderTarget[0] = blend_desc;
-
-		err = m_pDevice->CreateBlendState(&blend_desc_, &m_pBlendState);
-		if (err != S_OK)
-		{
-			std::cerr << "Error creating D3D11 blend state" << std::endl;
-			return;
-		}
-
-		m_pDeviceContext->OMSetBlendState(m_pBlendState, NULL, 0xffffffff);
-
-		D3D11_DEPTH_STENCIL_DESC depth_stencil_desc;
-
-		depth_stencil_desc.DepthEnable = pipeline.depthStencilState.depthTestEnabled;
-		depth_stencil_desc.DepthWriteMask = pipeline.depthStencilState.depthWriteEnabled ? D3D11_DEPTH_WRITE_MASK_ALL : D3D11_DEPTH_WRITE_MASK_ZERO;
-
-		switch (pipeline.depthStencilState.depthComparison)
-		{
-		case COMPARISON_ALWAYS: depth_stencil_desc.DepthFunc = D3D11_COMPARISON_ALWAYS; break;
-		case COMPARISON_NEVER: depth_stencil_desc.DepthFunc = D3D11_COMPARISON_NEVER; break;
-		case COMPARISON_LESS: depth_stencil_desc.DepthFunc = D3D11_COMPARISON_LESS; break;
-		case COMPARISON_GREATER: depth_stencil_desc.DepthFunc = D3D11_COMPARISON_GREATER; break;
-		case COMPARISON_LESS_EQUAL: depth_stencil_desc.DepthFunc = D3D11_COMPARISON_LESS_EQUAL; break;
-		case COMPARISON_GREATER_EQUAL: depth_stencil_desc.DepthFunc = D3D11_COMPARISON_GREATER_EQUAL; break;
-		case COMPARISON_EQUAL: depth_stencil_desc.DepthFunc = D3D11_COMPARISON_EQUAL; break;
-		case COMPARISON_NOT_EQUAL: depth_stencil_desc.DepthFunc = D3D11_COMPARISON_NOT_EQUAL; break;
-		}
-
-		depth_stencil_desc.StencilEnable = pipeline.depthStencilState.stencilTestEnabled;
-		depth_stencil_desc.StencilReadMask = 0xFF;
-		depth_stencil_desc.StencilWriteMask = 0xFF;
-
-		depth_stencil_desc.BackFace = GetStencilFace(pipeline.depthStencilState.back);
-		depth_stencil_desc.FrontFace = GetStencilFace(pipeline.depthStencilState.front);
-
-		m_pDevice->CreateDepthStencilState(&depth_stencil_desc, &m_pDepthStencilState);
-		m_pDeviceContext->OMSetDepthStencilState(m_pDepthStencilState, 0xFF);
-	}
-
-	uint32 RenderContextD3D11::LoadShader(const ShaderInfo & shaderInfo)
+	ShaderInfoD3D11* RenderContextD3D11::LoadShader(const ShaderInfo & shaderInfo)
 	{
 		ShaderInfoD3D11 loadedShader;
 		loadedShader.name = shaderInfo.shaderPaths[SHADER_TYPE_VERTEX];
@@ -350,19 +383,19 @@ namespace Happic { namespace Rendering {
 		if (err != S_OK)
 		{
 			std::cerr << "Error creating D3D11 vertex shader" << std::endl;
-			return -1;
+			return NULL;
 		}
 
 		err = m_pDevice->CreatePixelShader(pPixelCode->GetBufferPointer(), pPixelCode->GetBufferSize(), NULL, &loadedShader.pPixelShader);
 		if (err != S_OK)
 		{
 			std::cerr << "Error creating D3D11 pixel shader" << std::endl;
-			return -1;
+			return NULL;
 		}
 
-		uint32 id = m_loadedShaders.size();
-		m_loadedShaders.push_back(loadedShader);
-		return id;
+		String key = shaderInfo.shaderPaths[SHADER_TYPE_VERTEX];
+		m_loadedShaders[key] = loadedShader;
+		return &m_loadedShaders[key];
 	}
 
 	void RenderContextD3D11::ParseShader(ID3D11ShaderReflection * pShaderReflection, ShaderInfoD3D11 * pShaderInfo, const ShaderType shaderType)

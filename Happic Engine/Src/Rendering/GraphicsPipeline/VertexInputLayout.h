@@ -1,8 +1,10 @@
 #pragma once
 
-namespace Happic { namespace Rendering {
-
+#include "../../DataStructures/Types.h"
+#include "../../DataStructures/String.h"
 #define MAX_VERTEX_ATTRIBUTES 16
+
+namespace Happic { namespace Rendering {
 
 	enum VertexAttributeType
 	{

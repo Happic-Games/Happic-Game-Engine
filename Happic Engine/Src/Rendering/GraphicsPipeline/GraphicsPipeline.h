@@ -11,6 +11,8 @@
 
 namespace Happic { namespace Rendering { 
 
+	typedef uint32 GraphicsPipelineID;
+
 	struct Rect
 	{
 		Rect(float x = 0.0f , float y = 0.0f, float width = 0.0f, float height = 0.0f) :
@@ -53,9 +55,14 @@ namespace Happic { namespace Rendering {
 			colorBlendState(colorBlendState),
 			dynamicState(dynamicState),
 			primitiveTopology(primitiveTopology)
-		{}
+		{
+			id = s_lastID++;
+		}
 
-		GraphicsPipeline() {}
+		GraphicsPipeline() 
+		{
+			id = s_lastID++;
+		}
 
 		ShaderInfo			shaderInfo;
 		VertexInputLayout	inputLayout;
@@ -66,6 +73,8 @@ namespace Happic { namespace Rendering {
 		ColorBlendState		colorBlendState;
 		DynamicState		dynamicState;
 		PrimitiveTopology	primitiveTopology;
+
+		GraphicsPipelineID	id;
 
 		inline static GraphicsPipeline CreateDefaultGraphicsPipeline(uint32 width, uint32 height)
 		{
@@ -90,6 +99,8 @@ namespace Happic { namespace Rendering {
 			pipeline.inputLayout.vertexAttributes[1].type = VERTEX_ATTRIBUTE_FLOAT2;
 			return pipeline;
 		}
+	private:
+		static GraphicsPipelineID s_lastID;
 	};
 
 } }

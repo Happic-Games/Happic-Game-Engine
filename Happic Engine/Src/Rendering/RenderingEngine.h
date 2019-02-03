@@ -15,7 +15,8 @@ namespace Happic { namespace Rendering {
 
 		void SetViewProjection(const Math::Matrix4f& viewProjection);
 	private:
-		Math::Matrix4f m_viewProjection;
+		Math::Matrix4f			m_viewProjection;
+		GraphicsPipeline		m_gbufferPipelineSettings;
 	};
 
 } }

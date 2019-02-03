@@ -6,17 +6,6 @@
 
 namespace Happic { namespace Rendering { 
 
-	struct RenderContextInitInfo
-	{
-		RenderContextInitInfo(IDisplay* pDisplay, const GraphicsPipeline& pipeline) :
-			pDisplay(pDisplay),
-			pipeline(pipeline)
-		{}
-
-		IDisplay* pDisplay;
-		GraphicsPipeline pipeline;
-	};
-
 	class IRenderContext;
 
 	class IRenderContext
@@ -24,7 +13,9 @@ namespace Happic { namespace Rendering {
 	public:
 		virtual ~IRenderContext() {}
 
-		virtual void Init(const RenderContextInitInfo& initInfo) = 0;
+		virtual void Init(IDisplay* pDisplay) = 0;
+
+		virtual void ChangeGraphicsPipeline(const GraphicsPipeline& pipeline) = 0;
 
 		virtual void UpdatePerDrawInstanceBuffer(ShaderType type, const void* pData) = 0;
 
@@ -35,7 +26,7 @@ namespace Happic { namespace Rendering {
 		virtual void Swap() = 0;
 		virtual void DisplayClosed() const {}
 
-		static IRenderContext* CreateRenderContext(IDisplay* pDisplay, RenderAPI renderAPI, const GraphicsPipeline& pipeline);
+		static IRenderContext* CreateRenderContext(IDisplay* pDisplay, RenderAPI renderAPI);
 		static void DestroyRenderContext();
 
 		static RenderAPI GetRenderAPI();

@@ -18,6 +18,8 @@ namespace Happic { namespace Rendering {
 		uint32 GetWidth() const override;
 		uint32 GetHeight() const override;
 	private:
+		static VkFormat GetFormat(TextureFormat format);
+	private:
 		VkImage				m_image;
 		VkImageView			m_imageView;
 		VkDeviceMemory		m_imageMemory;

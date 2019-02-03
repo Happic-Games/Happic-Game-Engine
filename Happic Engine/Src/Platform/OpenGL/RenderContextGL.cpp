@@ -18,10 +18,9 @@ namespace Happic { namespace Rendering {
 	{
 	}
 
-	void RenderContextGL::Init(const RenderContextInitInfo & initInfo)
+	void RenderContextGL::Init(IDisplay* pDisplay)
 	{
-		m_graphicsPipelineSettings = initInfo.pipeline;
-		m_hdc = GetDC(((Win32Display*)initInfo.pDisplay)->GetWindowHandle());
+		m_hdc = GetDC(((Win32Display*)pDisplay)->GetWindowHandle());
 		HGLRC glrc = wglCreateContext(m_hdc);
 		
 		if (glrc)
@@ -45,38 +44,48 @@ namespace Happic { namespace Rendering {
 		}
 
 		wglSwapIntervalEXT(1);
+	}
 
-		uint32 shaderID = LoadShaderProgram(initInfo.pipeline.shaderInfo.shaderPaths[SHADER_TYPE_VERTEX].C_Str(),
-			initInfo.pipeline.shaderInfo.shaderPaths[SHADER_TYPE_FRAGMENT].C_Str());
+	void RenderContextGL::ChangeGraphicsPipeline(const GraphicsPipeline & pipeline)
+	{
+		if (pipeline.id == m_graphicsPipelineSettings.id)
+			return;
 
-		if (initInfo.pipeline.depthStencilState.depthTestEnabled)
+		m_graphicsPipelineSettings = pipeline;
+
+		const auto&& index = m_loadedShaders.find(pipeline.shaderInfo.shaderPaths[SHADER_TYPE_VERTEX]);
+		if (index == m_loadedShaders.end())
+			m_pActiveShader = LoadShaderProgram(pipeline.shaderInfo.shaderPaths[SHADER_TYPE_VERTEX].C_Str(),
+				pipeline.shaderInfo.shaderPaths[SHADER_TYPE_FRAGMENT].C_Str());
+		else
+			m_pActiveShader = &index->second;
+
+		if (pipeline.depthStencilState.depthTestEnabled)
 			glEnable(GL_DEPTH_TEST);
 		else
 			glDisable(GL_DEPTH_TEST);
 
-		if (initInfo.pipeline.depthStencilState.depthWriteEnabled)
+		if (pipeline.depthStencilState.depthWriteEnabled)
 			glDepthMask(GL_TRUE);
 		else
 			glDepthMask(FALSE);
 
-		if (initInfo.pipeline.depthStencilState.stencilTestEnabled)
+		if (pipeline.depthStencilState.stencilTestEnabled)
 			glEnable(GL_STENCIL_TEST);
 		else
 			glDisable(GL_STENCIL_TEST);
 
 
-		glDepthFunc(GetDepthFunc(initInfo.pipeline.depthStencilState.depthComparison));
-		glStencilOpSeparate(GL_FRONT, GetStencilOp(initInfo.pipeline.depthStencilState.front.stencilFail),
-			GetStencilOp(initInfo.pipeline.depthStencilState.front.depthStencilFail), GetStencilOp(initInfo.pipeline.depthStencilState.front.depthStencilPass));
-		
-		glStencilOpSeparate(GL_BACK, GetStencilOp(initInfo.pipeline.depthStencilState.back.stencilFail),
-			GetStencilOp(initInfo.pipeline.depthStencilState.back.depthStencilFail), GetStencilOp(initInfo.pipeline.depthStencilState.back.depthStencilPass));
+		glDepthFunc(GetDepthFunc(pipeline.depthStencilState.depthComparison));
+		glStencilOpSeparate(GL_FRONT, GetStencilOp(pipeline.depthStencilState.front.stencilFail),
+			GetStencilOp(pipeline.depthStencilState.front.depthStencilFail), GetStencilOp(pipeline.depthStencilState.front.depthStencilPass));
 
-		glStencilFuncSeparate(GL_FRONT, GetDepthFunc(initInfo.pipeline.depthStencilState.front.comparison), 0xFF, 0xFF);
+		glStencilOpSeparate(GL_BACK, GetStencilOp(pipeline.depthStencilState.back.stencilFail),
+			GetStencilOp(pipeline.depthStencilState.back.depthStencilFail), GetStencilOp(pipeline.depthStencilState.back.depthStencilPass));
 
-		glFrontFace(initInfo.pipeline.rasterizerState.frontFace == FRONT_FACE_CCW ? GL_CCW : GL_CW);
+		glStencilFuncSeparate(GL_FRONT, GetDepthFunc(pipeline.depthStencilState.front.comparison), 0xFF, 0xFF);
 
-		m_pActiveShader = &m_loadedShaders[shaderID];
+		glFrontFace(pipeline.rasterizerState.frontFace == FRONT_FACE_CCW ? GL_CCW : GL_CW);
 
 		glUseProgram(m_pActiveShader->program);
 	}
@@ -248,7 +257,7 @@ namespace Happic { namespace Rendering {
 		}
 	}
 
-	uint32 RenderContextGL::LoadShaderProgram(cstring vertexName, cstring fragmentName)
+	ShaderInfoGL* RenderContextGL::LoadShaderProgram(cstring vertexName, cstring fragmentName)
 	{
 		String rootPath = "Res/Shaders/GLSL_330/";
 
@@ -273,9 +282,8 @@ namespace Happic { namespace Rendering {
 		ParseShader(vertexCode, &loadedShader, SHADER_TYPE_VERTEX);
 		ParseShader(fragmentCode, &loadedShader, SHADER_TYPE_FRAGMENT);
 
-		uint32 shaderID = m_loadedShaders.size();
-		m_loadedShaders.push_back(loadedShader);
-		return shaderID;
+		m_loadedShaders[vertexName] = loadedShader;
+		return &m_loadedShaders[vertexName];
 	}
 
 	GLuint RenderContextGL::CreateShader(const String & code, GLenum type, GLuint program)

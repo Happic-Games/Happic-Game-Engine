@@ -8,7 +8,7 @@ namespace Happic { namespace Rendering {
 	RenderAPI IRenderContext::s_renderAPI = RENDER_API_NONE;
 	IRenderContext* IRenderContext::s_pRenderContext = NULL;
 
-	IRenderContext* IRenderContext::CreateRenderContext(IDisplay* pDisplay, RenderAPI renderAPI, const GraphicsPipeline& pipeline)
+	IRenderContext* IRenderContext::CreateRenderContext(IDisplay* pDisplay, RenderAPI renderAPI)
 	{
 		s_renderAPI = renderAPI;
 
@@ -19,7 +19,7 @@ namespace Happic { namespace Rendering {
 		case RENDER_API_OPENGL: s_pRenderContext = new RenderContextGL(); break;
 		}
 
-		s_pRenderContext->Init(RenderContextInitInfo(pDisplay, pipeline));
+		s_pRenderContext->Init(pDisplay);
 		return s_pRenderContext;
 	}
 

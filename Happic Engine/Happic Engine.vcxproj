@@ -166,11 +166,13 @@
     <ClCompile Include="Src\Platform\OpenGL\Texture2DGL.cpp" />
     <ClCompile Include="Src\Platform\OpenGL\TextureSamplerGL.cpp" />
     <ClCompile Include="Src\Platform\Vulkan\BufferVK.cpp" />
+    <ClCompile Include="Src\Platform\Vulkan\FramebufferVK.cpp" />
     <ClCompile Include="Src\Platform\Vulkan\RenderContextVK.cpp" />
     <ClCompile Include="Src\Platform\Vulkan\Texture2DVK.cpp" />
     <ClCompile Include="Src\Platform\Vulkan\TextureSamplerVK.cpp" />
     <ClCompile Include="Src\Platform\Windows\Win32Display.cpp" />
     <ClCompile Include="Src\Platform\Windows\Win32Input.cpp" />
+    <ClCompile Include="Src\Rendering\GraphicsPipeline\GraphicsPipeline.cpp" />
     <ClCompile Include="Src\Rendering\IBuffer.cpp" />
     <ClCompile Include="Src\Rendering\IDisplay.cpp" />
     <ClCompile Include="Src\Rendering\IRenderContext.cpp" />
@@ -229,6 +231,7 @@
     <ClInclude Include="Src\Platform\OpenGL\Texture2DGL.h" />
     <ClInclude Include="Src\Platform\OpenGL\TextureSamplerGL.h" />
     <ClInclude Include="Src\Platform\Vulkan\BufferVK.h" />
+    <ClInclude Include="Src\Platform\Vulkan\FramebufferVK.h" />
     <ClInclude Include="Src\Platform\Vulkan\RenderContextVK.h" />
     <ClInclude Include="Src\Platform\Vulkan\Texture2DVK.h" />
     <ClInclude Include="Src\Platform\Vulkan\TextureSamplerVK.h" />
@@ -244,6 +247,7 @@
     <ClInclude Include="Src\Rendering\GraphicsPipeline\VertexInputLayout.h" />
     <ClInclude Include="Src\Rendering\IBuffer.h" />
     <ClInclude Include="Src\Rendering\IDisplay.h" />
+    <ClInclude Include="Src\Rendering\IFramebuffer.h" />
     <ClInclude Include="Src\Rendering\IRenderContext.h" />
     <ClInclude Include="Src\Rendering\ITexture.h" />
     <ClInclude Include="Src\Rendering\ITexture2D.h" />

@@ -80,4 +80,9 @@ namespace Happic { namespace Rendering {
 		return m_height;
 	}
 
+	VkFormat Texture2DVK::GetFormat(TextureFormat format)
+	{
+		return VkFormat();
+	}
+
 } }

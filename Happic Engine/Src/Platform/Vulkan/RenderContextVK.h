@@ -6,6 +6,7 @@
 #include <vulkan\vulkan.h>
 #include <vector>
 #include <unordered_map>
+#include <map>
 #include "BufferVK.h"
 
 #define RENDER_CONTEXT_VK_MAX_FRAMES_IN_FLIGHT 1
@@ -17,6 +18,12 @@ namespace Happic { namespace Rendering {
 	{
 		int32 graphics;
 		int32 present;
+	};
+
+	struct GraphicsPipelineVK
+	{
+		VkPipeline			graphicsPipeline;
+		VkPipelineLayout	pipelineLayout;
 	};
 
 	struct SwapChainSupportDetails
@@ -40,28 +47,6 @@ namespace Happic { namespace Rendering {
 		uint32 binding;
 	};
 
-	struct ShaderInfoVK
-	{
-		ShaderInfo							shaderInfo;
-		VkShaderModule						shaderModules[NUM_SHADER_TYPES];
-		VkPipelineShaderStageCreateInfo		shaderStages[NUM_SHADER_TYPES];
-		std::vector<ShaderBufferInfoVK>		shaderBuffers;
-		std::vector<SamplerInfoVK>			samplers;
-	};
-
-	struct DepthStencilBufferVK
-	{
-		VkImage			depthStencilImage;
-		VkImageView		depthStencilImageView;
-		VkDeviceMemory	imageMemory;
-	};
-
-	struct UniformBufferInfoVK
-	{
-		IBuffer*	pUniformBuffer;
-		uint32		binding;
-	};
-
 	struct ShaderUniformBuffersVK
 	{
 		BufferVK*	perWindowResizeBuffer;
@@ -77,16 +62,45 @@ namespace Happic { namespace Rendering {
 		void*		pMappedInstanceBufferData;
 	};
 
-	struct FrameInFlight
+	struct UniformBuffersInfoVK
 	{
-		VkSemaphore										imageAvailableSemaphore;
-		VkSemaphore										renderFinishedSemaphore;
-		VkFence											fence;
-		VkCommandBuffer									renderCommandBuffer;
 		ShaderUniformBuffersVK							uniformBuffers[NUM_SHADER_TYPES];
 		uint32											dynamicUniformOffsetCount;
 		mutable uint32									dynamicUniformOffsets[NUM_SHADER_TYPES];
-		VkDescriptorSet									uniformBufferdescriptorSet;
+		VkDescriptorSet									uniformBufferDescriptorSet;
+		VkDescriptorSetLayout							descriptorSetLayout;
+	};
+
+	struct ShaderInfoVK
+	{
+		ShaderInfo							shaderInfo;
+		VkShaderModule						shaderModules[NUM_SHADER_TYPES];
+		VkPipelineShaderStageCreateInfo		shaderStages[NUM_SHADER_TYPES];
+		std::vector<ShaderBufferInfoVK>		shaderBuffers;
+		std::vector<SamplerInfoVK>			samplers;
+		UniformBuffersInfoVK				uniformBuffersInfoCopy[RENDER_CONTEXT_VK_MAX_FRAMES_IN_FLIGHT];
+	};
+
+	struct DepthStencilBufferVK
+	{
+		VkImage			depthStencilImage;
+		VkImageView		depthStencilImageView;
+		VkDeviceMemory	imageMemory;
+	};
+
+	struct UniformBufferInfoVK
+	{
+		IBuffer*	pUniformBuffer;
+		uint32		binding;
+	};
+
+	struct FrameInFlight
+	{
+		VkSemaphore												imageAvailableSemaphore;
+		VkSemaphore												renderFinishedSemaphore;
+		VkFence													fence;
+		VkCommandBuffer											renderCommandBuffer;
+		UniformBuffersInfoVK									uniformBuffers;
 		mutable std::unordered_map<uint32, VkDescriptorSet>		textureDescriptorSets;
 	};
 
@@ -96,7 +110,9 @@ namespace Happic { namespace Rendering {
 		RenderContextVK();
 		~RenderContextVK();
 
-		void Init(const RenderContextInitInfo& initInfo) override;
+		void Init(IDisplay* pDisplay) override;
+
+		void ChangeGraphicsPipeline(const GraphicsPipeline& pipeline) override;
 
 		void UpdatePerDrawInstanceBuffer(ShaderType type, const void* pData) override;
 		void SubmitDrawCommand(const DrawCommand& drawCommand) const override;
@@ -113,6 +129,8 @@ namespace Happic { namespace Rendering {
 
 		bool CreateImage(uint32 width, uint32 height, VkFormat format, VkImageTiling tiling, VkImageUsageFlags usage, VkMemoryPropertyFlags properties, VkImage* pImage, VkDeviceMemory* pImageMemory);
 		bool CreateImageView(VkImage image, VkFormat format, VkImageAspectFlags imageAspectFlags, VkImageView* pImageView);
+
+		VkRenderPass GetRenderPass() const;
 
 		const VkDevice& GetDevice() const;
 	private:
@@ -133,7 +151,6 @@ namespace Happic { namespace Rendering {
 		void InitSwapChain(uint32 width, uint32 height);
 		void InitImageViews();
 		void InitRenderPass();
-		void InitGraphicsPipeline(const GraphicsPipeline& pipeline);
 		void InitFramebuffers();
 		void InitCommandPool();
 		void InitCommandBuffers();
@@ -141,6 +158,7 @@ namespace Happic { namespace Rendering {
 		void InitUniformBuffers();
 		void InitDescriptorPool();
 		void InitDescriptorSets();
+		void InitUniformBufferDescriptorSetLayout();
 		void UpdateDescriptorSet(VkDescriptorSet descriptorSet, const BufferVK* pBuffer, uint32 binding, VkDescriptorType type);
 		void InitDepthStencilBuffer();
 		void CleanupSwapChain();
@@ -156,7 +174,7 @@ namespace Happic { namespace Rendering {
 		VkFormat FindDepthFormat();
 		bool HasStencilComponent(VkFormat format);
 
-		uint32 LoadShader(const ShaderInfo& pShaderInfo, const VkDevice& device);
+		ShaderInfoVK* LoadShader(const ShaderInfo& pShaderInfo, const VkDevice& device);
 		VkShaderModule CreateShaderModule(const std::vector<char>& code, const VkDevice& device);
 		void ParseShader(const String& glsl, ShaderType type, ShaderInfoVK* pShaderInfo);
 	private:
@@ -174,44 +192,46 @@ namespace Happic { namespace Rendering {
 
 		friend bool window_resize_update_swapchain(WindowEvent windowEvent, const WindowEventInfo&  windowEventInfo, void* pUserPtr);
 	private:
-		VkInstance						m_instance;
-		VkDebugUtilsMessengerEXT		m_callback;
-		VkPhysicalDevice				m_physicalDevice;
-		QueueFamilyIndices				m_queueFamilies;
-		VkDevice						m_device;
-		VkQueue							m_graphicsQueue;
-		VkQueue							m_presentQueue;
-		VkSurfaceKHR					m_surface;
-		VkSwapchainKHR					m_swapChain;
-		VkFormat						m_swapChainFormat;
-		VkExtent2D						m_swapChainExtent;
-		VkRenderPass					m_renderPass;
-		VkPipelineLayout				m_pipelineLayout;
-		VkPipeline						m_graphicsPipeline;
-		VkCommandPool					m_commandPool;
-		VkDescriptorSetLayout			m_descriptorSetLayout;
-		VkDescriptorSetLayout			m_textureDescriptorSetLayout;
-		VkDescriptorPool				m_descriptorPool;
-		DepthStencilBufferVK			m_depthStencilBuffer;
-		FrameInFlight					m_framesInFlight[RENDER_CONTEXT_VK_MAX_FRAMES_IN_FLIGHT];
+		VkInstance												m_instance;
+		VkDebugUtilsMessengerEXT								m_callback;
+		VkPhysicalDevice										m_physicalDevice;
+		QueueFamilyIndices										m_queueFamilies;
+		VkDevice												m_device;
+		VkQueue													m_graphicsQueue;
+		VkQueue													m_presentQueue;
+		VkSurfaceKHR											m_surface;
+		VkSwapchainKHR											m_swapChain;
+		VkFormat												m_swapChainFormat;
+		VkExtent2D												m_swapChainExtent;
+		VkRenderPass											m_renderPass;
+		VkPipelineLayout										m_pipelineLayout;
+		VkPipeline												m_graphicsPipeline;
+		VkCommandPool											m_commandPool;
+		VkDescriptorSetLayout									m_descriptorSetLayout;
+		VkDescriptorSetLayout									m_textureDescriptorSetLayout;
+		VkDescriptorPool										m_descriptorPool;
+		DepthStencilBufferVK									m_depthStencilBuffer;
+		FrameInFlight											m_framesInFlight[RENDER_CONTEXT_VK_MAX_FRAMES_IN_FLIGHT];
 
-		GraphicsPipeline				m_graphicsPipelineSettings;
+		std::map<GraphicsPipelineID, GraphicsPipelineVK>		m_loadedGraphicsPipelines;
 
-		uint32 m_currentFrame;
+		GraphicsPipeline										m_graphicsPipelineSettings;
 
-		std::vector<VkCommandBuffer>	m_commandBuffers;
-		uint32 m_currentFramebuffer;
+		uint32													m_currentFrame;
+
+		std::vector<VkCommandBuffer>							m_commandBuffers;
+		uint32													m_currentFramebuffer;
 		
-		ShaderInfoVK*					m_pActiveShader;
+		ShaderInfoVK*											m_pActiveShader;
 
-		std::vector<VkImage>			m_swapChainImages;
-		std::vector<VkImageView>		m_swapChainImageViews;
-		std::vector<VkFramebuffer>		m_swapChainFramebuffers;
+		std::vector<VkImage>									m_swapChainImages;
+		std::vector<VkImageView>								m_swapChainImageViews;
+		std::vector<VkFramebuffer>								m_swapChainFramebuffers;
 
-		std::vector<cstring>			m_validationLayers;
-		std::vector<cstring>			m_deviceExtensions;
+		std::vector<cstring>									m_validationLayers;
+		std::vector<cstring>									m_deviceExtensions;
 
-		std::vector<ShaderInfoVK>		m_loadedShaders;
+		std::map<String, ShaderInfoVK>							m_loadedShaders;
 	};
 
 } }

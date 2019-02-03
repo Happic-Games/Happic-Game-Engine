@@ -5,6 +5,7 @@
 #include <Windows.h>
 #include <GL\glew.h>
 #include "BufferGL.h"
+#include <map>
 
 namespace Happic { namespace Rendering {
 
@@ -42,17 +43,19 @@ namespace Happic { namespace Rendering {
 		RenderContextGL();
 		~RenderContextGL();
 
-		void Init(const RenderContextInitInfo& initInfo) override;
+		void Init(IDisplay* pDisplay) override;
+
+		void ChangeGraphicsPipeline(const GraphicsPipeline& pipeline) override;
 
 		void BeginFrame() const override;
 		void UpdatePerDrawInstanceBuffer(ShaderType type, const void* pData) override;
 		void SubmitDrawCommand(const DrawCommand& drawCommand) const override;
 		void Swap() override;
 
-		uint32 LoadShaderProgram(cstring vertexName, cstring fragmentName);
-
 		const VertexInputLayout& GetInputLayout() const;
 	private:
+		ShaderInfoGL* LoadShaderProgram(cstring vertexName, cstring fragmentName);
+
 		void SetTextureUniforms(const TextureGroup& textureGroup) const;
 
 		void ParseShader(const String& glsl, ShaderInfoGL* pShaderInfo, ShaderType type);
@@ -64,10 +67,10 @@ namespace Happic { namespace Rendering {
 		static GLenum GetDepthFunc(Comparison comparison);
 		static GLenum GetStencilOp(StencilOperation operation);
 	private:
-		HDC m_hdc;
-		GraphicsPipeline m_graphicsPipelineSettings;
-		std::vector<ShaderInfoGL> m_loadedShaders;
-		ShaderInfoGL* m_pActiveShader;
+		HDC									m_hdc;
+		GraphicsPipeline					m_graphicsPipelineSettings;
+		std::map<String, ShaderInfoGL>		m_loadedShaders;
+		ShaderInfoGL*						m_pActiveShader;
 	};
 
 } }

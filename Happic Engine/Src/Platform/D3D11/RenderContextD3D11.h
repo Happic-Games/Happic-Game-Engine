@@ -7,6 +7,7 @@
 #include <vector>
 #include <d3d11.h>
 #include <d3dcompiler.h>
+#include <map>
 
 namespace Happic { namespace Rendering {
 
@@ -41,18 +42,31 @@ namespace Happic { namespace Rendering {
 		std::vector<ResourceInfoD3D11>			samplers;
 	};
 
+	struct GraphicsPipelineD3D11
+	{
+		ID3D11DepthStencilView*					pDepthStencilView;
+		ID3D11RasterizerState*					pRasterizerState;
+		ID3D11InputLayout*						pInputLayout;
+		ID3D11BlendState*						pBlendState;
+		ID3D11DepthStencilState*				pDepthStencilState;
+		D3D11_VIEWPORT							viewport;
+		D3D11_RECT								scissor;
+	};
+
 	class RenderContextD3D11 : public IRenderContext
 	{
 	public:
 		RenderContextD3D11();
 		~RenderContextD3D11();
 
+		void ChangeGraphicsPipeline(const GraphicsPipeline& pipeline);
+
 		void BeginFrame() const override;
 		void UpdatePerDrawInstanceBuffer(ShaderType type, const void* pData) override;
 		void SubmitDrawCommand(const DrawCommand& drawCommand) const override;
 		void Swap() override;
 
-		void Init(const RenderContextInitInfo& initInfo) override;
+		void Init(IDisplay* pDisplay) override;
 
 		ID3D11Device* GetDevice();
 		ID3D11DeviceContext* GetDeviceContext();
@@ -60,11 +74,10 @@ namespace Happic { namespace Rendering {
 		void InitDeviceAndSwapChain(Win32Display* pDisplay);
 		void InitRenderTargetView();
 		void InitDepthStencilView();
-		void InitGraphicsPipeline(const GraphicsPipeline& pipeline);
 
 		void UpdateTexturesAndSamplers(const TextureGroup& textureGroup) const;
 
-		uint32 LoadShader(const ShaderInfo& shaderInfo);
+		ShaderInfoD3D11* LoadShader(const ShaderInfo& shaderInfo);
 		void ParseShader(ID3D11ShaderReflection* pShaderReflection, ShaderInfoD3D11* pShaderInfo, const ShaderType shaderType);
 	private:
 		static D3D11_CULL_MODE GetCullMode(CullMode cullMode);
@@ -77,23 +90,20 @@ namespace Happic { namespace Rendering {
 		static ID3DBlob* CompileShader(const String& sourceName, const String& shaderSrc, const String& entryPoint, const String& target);
 		static String ReadFile(cstring path);
 	private:
-		IDXGISwapChain*					m_pSwapChain;
-		ID3D11Device*					m_pDevice;
-		ID3D11DeviceContext*			m_pDeviceContext;
+		IDXGISwapChain*											m_pSwapChain;
+		ID3D11Device*											m_pDevice;
+		ID3D11DeviceContext*									m_pDeviceContext;
 
-		ID3D11RenderTargetView*			m_pRenderTargetView;
-		ID3D11DepthStencilView*			m_pDepthStencilView;
-		ID3D11RasterizerState*			m_pRasterizerState;
-		ID3D11InputLayout*				m_pInputLayout;
-		ID3D11BlendState*				m_pBlendState;
-		ID3D11DepthStencilState*		m_pDepthStencilState;
+		ID3D11RenderTargetView*									m_pRenderTargetView;
+		GraphicsPipelineD3D11									m_graphicsPipeline;
 
-		GraphicsPipeline				m_graphicsPipelineSettings;
+		GraphicsPipeline										m_graphicsPipelineSettings;
 
 		float m_clearColor[4];
 
-		std::vector<ShaderInfoD3D11>	m_loadedShaders;
-		ShaderInfoD3D11*				m_pActiveShader;
+		std::map<String, ShaderInfoD3D11>						m_loadedShaders;
+		std::map<GraphicsPipelineID, GraphicsPipelineD3D11>		m_loadedGraphicsPipelines;
+		ShaderInfoD3D11*										m_pActiveShader;
 	};
 
 } }

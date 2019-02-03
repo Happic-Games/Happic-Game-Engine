@@ -14,7 +14,7 @@ namespace Happic { namespace Core {
 			return;
 		}
 
-		Rendering::IRenderContext::CreateRenderContext(m_pDisplay, renderAPI, Rendering::GraphicsPipeline::CreateDefaultGraphicsPipeline(width, height));
+		Rendering::IRenderContext::CreateRenderContext(m_pDisplay, renderAPI);
 		m_pRenderingEngine = new Rendering::RenderingEngine();
 	}
 
